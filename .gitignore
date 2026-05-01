@@ -1,0 +1,82 @@
+# .gitignore file created for free with Tower (https://www.git-tower.com/)
+# For suggestions or improvements please contact us using support@git-tower.com
+# Generated on 2026-05-01
+# Includes: cpp, cmake, ninja
+
+### Universal ###
+# Common files that should be ignored in all projects
+
+# Logs
+*.log
+# Temporary files
+*.tmp
+*~
+
+*.bak
+# Environment files (containing secrets, API keys, credentials)
+.env
+*.env
+.env.*
+
+# Local configuration that shouldn't be shared
+*.local
+
+### Cpp ###
+# cpp specific files
+
+*.o
+*.out
+*.a
+
+### Cmake ###
+# CMake build system files and cache
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+CMakeTmp/
+
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+CTestTestfile.cmake
+_deps/
+build/
+bin/
+lib/
+
+*.cmake
+CMakeUserPresets.json
+CMakeSettings.json
+CMakePresets.json
+CMakeLists.txt.user
+
+CMakeDoxyfile.in
+CMakeDoxygenDefaults.cmake
+_CPack_Packages/
+DartConfiguration.tcl
+CMakeDoxygen.in
+
+CMakeCache.txt.prev
+CMakeLists.txt.user.*
+cmake-build-*/
+_build/
+-prefix/
+
+CMakeUserPresets.json
+
+### Ninja ###
+# ninja build tool specific files
+build-*/
+
+# Ninja
+.ninja_deps
+.ninja_log
+build.ninja
+.ninja/
+
+*.ninja
