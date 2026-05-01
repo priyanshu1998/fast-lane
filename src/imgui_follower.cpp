@@ -16,7 +16,8 @@
 #include <string>
 #include <vector>
 
-namespace {
+namespace
+{
 
 using Clock = std::chrono::steady_clock;
 
@@ -28,14 +29,16 @@ void glfw_error_callback(int error, const char* description)
 bool init_imgui(GLFWwindow*& window, const char* title)
 {
     glfwSetErrorCallback(glfw_error_callback);
-    if (!glfwInit()) {
+    if (!glfwInit())
+    {
         return false;
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     window = glfwCreateWindow(960, 640, title, nullptr, nullptr);
-    if (window == nullptr) {
+    if (window == nullptr)
+    {
         glfwTerminate();
         return false;
     }
@@ -64,13 +67,18 @@ void shutdown_imgui(GLFWwindow* window)
 void draw_snapshot_table(const std::vector<std::uint8_t>& bytes)
 {
     const auto values = fast_lane::decode_u64_sequence(bytes);
-    if (ImGui::BeginTable("snapshot-values", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, 220))) {
+    if (ImGui::BeginTable("snapshot-values",
+                          3,
+                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                          ImVec2(0, 220)))
+    {
         ImGui::TableSetupColumn("Index");
         ImGui::TableSetupColumn("uint64");
         ImGui::TableSetupColumn("Hex");
         ImGui::TableHeadersRow();
 
-        for (std::size_t row = 0; row < values.size(); ++row) {
+        for (std::size_t row = 0; row < values.size(); ++row)
+        {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%zu", row);
@@ -88,7 +96,8 @@ void draw_snapshot_table(const std::vector<std::uint8_t>& bytes)
 int main()
 {
     GLFWwindow* window = nullptr;
-    if (!init_imgui(window, "Fast Lane Follower")) {
+    if (!init_imgui(window, "Fast Lane Follower"))
+    {
         return 1;
     }
 
@@ -110,7 +119,8 @@ int main()
     std::string status = "Connect to a leader channel to begin reading.";
     auto next_poll = Clock::now();
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window))
+    {
         glfwPollEvents();
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -124,37 +134,53 @@ int main()
         ImGui::InputInt("Poll interval ms", &poll_interval_ms);
         poll_interval_ms = std::max(poll_interval_ms, 10);
 
-        if (!channel.has_value()) {
-            if (ImGui::Button("Connect Follower")) {
-                try {
-                    channel.emplace(fast_lane::SharedMemoryChannel::open_follower(channel_name.data()));
+        if (!channel.has_value())
+        {
+            if (ImGui::Button("Connect Follower"))
+            {
+                try
+                {
+                    channel.emplace(
+                        fast_lane::SharedMemoryChannel::open_follower(channel_name.data()));
                     last_seen = 0;
                     updates = 0;
                     status = "Follower connected.";
-                } catch (const std::exception& error) {
+                }
+                catch (const std::exception& error)
+                {
                     status = std::string("Connect failed: ") + error.what();
                 }
             }
-        } else {
-            if (ImGui::Button("Disconnect")) {
+        }
+        else
+        {
+            if (ImGui::Button("Disconnect"))
+            {
                 channel.reset();
                 local_buffer.reset();
                 branch_buffer.reset();
                 status = "Follower disconnected.";
             }
             ImGui::SameLine();
-            if (ImGui::Button("Poll Once")) {
-                try {
-                    if (channel->try_read(last_seen, snapshot)) {
+            if (ImGui::Button("Poll Once"))
+            {
+                try
+                {
+                    if (channel->try_read(last_seen, snapshot))
+                    {
                         last_seen = snapshot.sequence;
                         ++updates;
                         local_buffer.emplace(snapshot.bytes);
                         branch_buffer = local_buffer->fork();
                         status = "Read a new snapshot.";
-                    } else {
+                    }
+                    else
+                    {
                         status = "No newer stable snapshot.";
                     }
-                } catch (const std::exception& error) {
+                }
+                catch (const std::exception& error)
+                {
                     status = std::string("Poll failed: ") + error.what();
                 }
             }
@@ -162,16 +188,21 @@ int main()
             ImGui::Checkbox("Auto Poll", &auto_poll);
         }
 
-        if (channel.has_value() && auto_poll && Clock::now() >= next_poll) {
-            try {
-                if (channel->try_read(last_seen, snapshot)) {
+        if (channel.has_value() && auto_poll && Clock::now() >= next_poll)
+        {
+            try
+            {
+                if (channel->try_read(last_seen, snapshot))
+                {
                     last_seen = snapshot.sequence;
                     ++updates;
                     local_buffer.emplace(snapshot.bytes);
                     branch_buffer = local_buffer->fork();
                     status = "Auto-read a new snapshot.";
                 }
-            } catch (const std::exception& error) {
+            }
+            catch (const std::exception& error)
+            {
                 status = std::string("Auto poll failed: ") + error.what();
                 auto_poll = false;
             }
@@ -185,36 +216,48 @@ int main()
         ImGui::Text("Snapshot bytes: %zu", snapshot.bytes.size());
         ImGui::TextWrapped("Status: %s", status.c_str());
 
-        if (!snapshot.bytes.empty()) {
+        if (!snapshot.bytes.empty())
+        {
             ImGui::Separator();
             ImGui::Text("Snapshot Values");
             draw_snapshot_table(snapshot.bytes);
         }
 
-        if (local_buffer.has_value() && branch_buffer.has_value() && !local_buffer->empty()) {
+        if (local_buffer.has_value() && branch_buffer.has_value() && !local_buffer->empty())
+        {
             ImGui::Separator();
             ImGui::Text("Copy-On-Write Local Mutation");
-            mutate_offset = std::clamp(mutate_offset, 0, static_cast<int>(branch_buffer->size() - 1));
+            mutate_offset =
+                std::clamp(mutate_offset, 0, static_cast<int>(branch_buffer->size() - 1));
             mutate_value = std::clamp(mutate_value, 0, 255);
             ImGui::InputInt("Byte offset", &mutate_offset);
             ImGui::InputInt("New byte value", &mutate_value);
-            mutate_offset = std::clamp(mutate_offset, 0, static_cast<int>(branch_buffer->size() - 1));
+            mutate_offset =
+                std::clamp(mutate_offset, 0, static_cast<int>(branch_buffer->size() - 1));
             mutate_value = std::clamp(mutate_value, 0, 255);
-            if (ImGui::Button("Mutate Branch Copy")) {
-                branch_buffer->set(static_cast<std::size_t>(mutate_offset), static_cast<std::uint8_t>(mutate_value));
-                status = "Mutated branch copy. Shared snapshot and local source view are unchanged.";
+            if (ImGui::Button("Mutate Branch Copy"))
+            {
+                branch_buffer->set(static_cast<std::size_t>(mutate_offset),
+                                   static_cast<std::uint8_t>(mutate_value));
+                status =
+                    "Mutated branch copy. Shared snapshot and local source view are unchanged.";
             }
 
             const auto offset = static_cast<std::size_t>(mutate_offset);
-            ImGui::Text("Local source byte[%d]: %d", mutate_offset, static_cast<int>(local_buffer->at(offset)));
-            ImGui::Text("Branch copy byte[%d]: %d", mutate_offset, static_cast<int>(branch_buffer->at(offset)));
+            ImGui::Text("Local source byte[%d]: %d",
+                        mutate_offset,
+                        static_cast<int>(local_buffer->at(offset)));
+            ImGui::Text("Branch copy byte[%d]: %d",
+                        mutate_offset,
+                        static_cast<int>(branch_buffer->at(offset)));
         }
 
         ImGui::Separator();
         ImGui::Checkbox("Show ImGui demo window", &show_demo);
         ImGui::End();
 
-        if (show_demo) {
+        if (show_demo)
+        {
             ImGui::ShowDemoWindow(&show_demo);
         }
 

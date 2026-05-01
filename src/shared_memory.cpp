@@ -17,14 +17,17 @@
 #include <unistd.h>
 #endif
 
-namespace fast_lane {
-namespace {
+namespace fast_lane
+{
+namespace
+{
 
 constexpr std::uint32_t kMagic = 0x484d5346; // "FSMH" in little-endian memory.
 constexpr std::uint32_t kAbiVersion = 1;
 constexpr std::size_t kMaxReadRetries = 8;
 
-struct SharedHeader {
+struct SharedHeader
+{
     std::uint32_t magic = kMagic;
     std::uint32_t abi_version = kAbiVersion;
     std::uint64_t capacity = 0;
@@ -34,7 +37,8 @@ struct SharedHeader {
 
 std::size_t checked_region_size(std::size_t capacity)
 {
-    if (capacity > std::numeric_limits<std::size_t>::max() - sizeof(SharedHeader)) {
+    if (capacity > std::numeric_limits<std::size_t>::max() - sizeof(SharedHeader))
+    {
         throw SharedMemoryError("shared-memory capacity is too large");
     }
     return sizeof(SharedHeader) + capacity;
@@ -42,17 +46,20 @@ std::size_t checked_region_size(std::size_t capacity)
 
 std::string platform_name(const std::string& name)
 {
-    if (name.empty()) {
+    if (name.empty())
+    {
         throw SharedMemoryError("shared-memory name must not be empty");
     }
 
 #ifdef _WIN32
-    if (name.rfind("Global\\", 0) == 0 || name.rfind("Local\\", 0) == 0) {
+    if (name.rfind("Global\\", 0) == 0 || name.rfind("Local\\", 0) == 0)
+    {
         return name;
     }
     return "Local\\" + name;
 #else
-    if (name.front() == '/') {
+    if (name.front() == '/')
+    {
         return name;
     }
     return "/" + name;
@@ -75,7 +82,8 @@ std::string last_error_message(const std::string& prefix)
 
     std::ostringstream out;
     out << prefix << " (Win32 error " << code << ")";
-    if (length > 0 && buffer != nullptr) {
+    if (length > 0 && buffer != nullptr)
+    {
         out << ": " << buffer;
         LocalFree(buffer);
     }
@@ -90,33 +98,37 @@ std::string errno_message(const std::string& prefix)
 }
 #endif
 
-class MemoryMapping {
-public:
+class MemoryMapping
+{
+  public:
     static MemoryMapping create(const std::string& requested_name, std::size_t size)
     {
         const std::string mapped_name = platform_name(requested_name);
 
 #ifdef _WIN32
-        if (size > static_cast<std::uint64_t>(std::numeric_limits<DWORD>::max()) * 2ULL + 1ULL) {
+        if (size > static_cast<std::uint64_t>(std::numeric_limits<DWORD>::max()) * 2ULL + 1ULL)
+        {
             throw SharedMemoryError("mapping size is too large for this demo");
         }
 
-        const DWORD size_high = static_cast<DWORD>((static_cast<std::uint64_t>(size) >> 32) & 0xffffffffULL);
+        const DWORD size_high =
+            static_cast<DWORD>((static_cast<std::uint64_t>(size) >> 32) & 0xffffffffULL);
         const DWORD size_low = static_cast<DWORD>(static_cast<std::uint64_t>(size) & 0xffffffffULL);
 
-        HANDLE handle = CreateFileMappingA(
-            INVALID_HANDLE_VALUE,
-            nullptr,
-            PAGE_READWRITE,
-            size_high,
-            size_low,
-            mapped_name.c_str());
-        if (handle == nullptr) {
+        HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE,
+                                           nullptr,
+                                           PAGE_READWRITE,
+                                           size_high,
+                                           size_low,
+                                           mapped_name.c_str());
+        if (handle == nullptr)
+        {
             throw SharedMemoryError(last_error_message("CreateFileMapping failed"));
         }
 
         void* view = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, size);
-        if (view == nullptr) {
+        if (view == nullptr)
+        {
             CloseHandle(handle);
             throw SharedMemoryError(last_error_message("MapViewOfFile failed"));
         }
@@ -126,18 +138,21 @@ public:
         shm_unlink(mapped_name.c_str());
 
         const int fd = shm_open(mapped_name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
-        if (fd == -1) {
+        if (fd == -1)
+        {
             throw SharedMemoryError(errno_message("shm_open create failed"));
         }
 
-        if (ftruncate(fd, static_cast<off_t>(size)) == -1) {
+        if (ftruncate(fd, static_cast<off_t>(size)) == -1)
+        {
             close(fd);
             shm_unlink(mapped_name.c_str());
             throw SharedMemoryError(errno_message("ftruncate failed"));
         }
 
         void* view = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (view == MAP_FAILED) {
+        if (view == MAP_FAILED)
+        {
             close(fd);
             shm_unlink(mapped_name.c_str());
             throw SharedMemoryError(errno_message("mmap create failed"));
@@ -153,12 +168,14 @@ public:
 
 #ifdef _WIN32
         HANDLE handle = OpenFileMappingA(FILE_MAP_READ, FALSE, mapped_name.c_str());
-        if (handle == nullptr) {
+        if (handle == nullptr)
+        {
             throw SharedMemoryError(last_error_message("OpenFileMapping failed"));
         }
 
         void* view = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0);
-        if (view == nullptr) {
+        if (view == nullptr)
+        {
             CloseHandle(handle);
             throw SharedMemoryError(last_error_message("MapViewOfFile read-only failed"));
         }
@@ -169,19 +186,22 @@ public:
         return MemoryMapping(requested_name, mapped_name, view, size, handle, false);
 #else
         const int fd = shm_open(mapped_name.c_str(), O_RDONLY, 0);
-        if (fd == -1) {
+        if (fd == -1)
+        {
             throw SharedMemoryError(errno_message("shm_open follower failed"));
         }
 
-        struct stat info {};
-        if (fstat(fd, &info) == -1) {
+        struct stat info{};
+        if (fstat(fd, &info) == -1)
+        {
             close(fd);
             throw SharedMemoryError(errno_message("fstat failed"));
         }
         const std::size_t size = static_cast<std::size_t>(info.st_size);
 
         void* view = mmap(nullptr, size, PROT_READ, MAP_SHARED, fd, 0);
-        if (view == MAP_FAILED) {
+        if (view == MAP_FAILED)
+        {
             close(fd);
             throw SharedMemoryError(errno_message("mmap follower failed"));
         }
@@ -191,16 +211,19 @@ public:
     }
 
     MemoryMapping(MemoryMapping&& other) noexcept
-        : requested_name_(std::move(other.requested_name_)),
-          mapped_name_(std::move(other.mapped_name_)),
-          view_(other.view_),
-          size_(other.size_),
+        : requested_name_(std::move(other.requested_name_))
+        , mapped_name_(std::move(other.mapped_name_))
+        , view_(other.view_)
+        , size_(other.size_)
+        ,
 #ifdef _WIN32
-          handle_(other.handle_),
+        handle_(other.handle_)
+        ,
 #else
-          fd_(other.fd_),
+        fd_(other.fd_)
+        ,
 #endif
-          owner_(other.owner_)
+        owner_(other.owner_)
     {
         other.view_ = nullptr;
         other.size_ = 0;
@@ -214,7 +237,8 @@ public:
 
     MemoryMapping& operator=(MemoryMapping&& other) noexcept
     {
-        if (this != &other) {
+        if (this != &other)
+        {
             cleanup();
 
             requested_name_ = std::move(other.requested_name_);
@@ -263,46 +287,64 @@ public:
         return requested_name_;
     }
 
-private:
+  private:
 #ifdef _WIN32
-    MemoryMapping(std::string requested_name, std::string mapped_name, void* view, std::size_t size, HANDLE handle, bool owner)
+    MemoryMapping(std::string requested_name,
+                  std::string mapped_name,
+                  void* view,
+                  std::size_t size,
+                  HANDLE handle,
+                  bool owner)
 #else
-    MemoryMapping(std::string requested_name, std::string mapped_name, void* view, std::size_t size, int fd, bool owner)
+    MemoryMapping(std::string requested_name,
+                  std::string mapped_name,
+                  void* view,
+                  std::size_t size,
+                  int fd,
+                  bool owner)
 #endif
-        : requested_name_(std::move(requested_name)),
-          mapped_name_(std::move(mapped_name)),
-          view_(view),
-          size_(size),
+        : requested_name_(std::move(requested_name))
+        , mapped_name_(std::move(mapped_name))
+        , view_(view)
+        , size_(size)
+        ,
 #ifdef _WIN32
-          handle_(handle),
+        handle_(handle)
+        ,
 #else
-          fd_(fd),
+        fd_(fd)
+        ,
 #endif
-          owner_(owner)
+        owner_(owner)
     {
     }
 
     void cleanup()
     {
 #ifdef _WIN32
-        if (view_ != nullptr) {
+        if (view_ != nullptr)
+        {
             UnmapViewOfFile(view_);
             view_ = nullptr;
         }
-        if (handle_ != nullptr) {
+        if (handle_ != nullptr)
+        {
             CloseHandle(handle_);
             handle_ = nullptr;
         }
 #else
-        if (view_ != nullptr) {
+        if (view_ != nullptr)
+        {
             munmap(view_, size_);
             view_ = nullptr;
         }
-        if (fd_ != -1) {
+        if (fd_ != -1)
+        {
             close(fd_);
             fd_ = -1;
         }
-        if (owner_) {
+        if (owner_)
+        {
             shm_unlink(mapped_name_.c_str());
             owner_ = false;
         }
@@ -323,13 +365,16 @@ private:
 
 void validate_header(const SharedHeader& header, std::size_t mapped_size)
 {
-    if (header.magic != kMagic) {
+    if (header.magic != kMagic)
+    {
         throw SharedMemoryError("shared-memory header magic does not match");
     }
-    if (header.abi_version != kAbiVersion) {
+    if (header.abi_version != kAbiVersion)
+    {
         throw SharedMemoryError("shared-memory ABI version does not match");
     }
-    if (checked_region_size(static_cast<std::size_t>(header.capacity)) > mapped_size) {
+    if (checked_region_size(static_cast<std::size_t>(header.capacity)) > mapped_size)
+    {
         throw SharedMemoryError("shared-memory header capacity exceeds mapped size");
     }
 }
@@ -346,15 +391,16 @@ const std::uint8_t* payload_begin(const SharedHeader* header)
 
 } // namespace
 
-struct SharedMemoryChannel::Impl {
+struct SharedMemoryChannel::Impl
+{
     MemoryMapping mapping;
     SharedHeader* header = nullptr;
     bool writable = false;
 
     Impl(MemoryMapping memory_mapping, bool can_write)
-        : mapping(std::move(memory_mapping)),
-          header(static_cast<SharedHeader*>(mapping.view())),
-          writable(can_write)
+        : mapping(std::move(memory_mapping))
+        , header(static_cast<SharedHeader*>(mapping.view()))
+        , writable(can_write)
     {
     }
 };
@@ -364,7 +410,8 @@ SharedMemoryError::SharedMemoryError(const std::string& message)
 {
 }
 
-SharedMemoryChannel SharedMemoryChannel::create_leader(const std::string& name, std::size_t capacity)
+SharedMemoryChannel SharedMemoryChannel::create_leader(const std::string& name,
+                                                       std::size_t capacity)
 {
     const std::size_t size = checked_region_size(capacity);
     auto mapping = MemoryMapping::create(name, size);
@@ -408,10 +455,12 @@ std::string SharedMemoryChannel::name() const
 
 void SharedMemoryChannel::publish(const std::vector<std::uint8_t>& bytes)
 {
-    if (!impl_->writable) {
+    if (!impl_->writable)
+    {
         throw SharedMemoryError("followers cannot publish to shared memory");
     }
-    if (bytes.size() > capacity()) {
+    if (bytes.size() > capacity())
+    {
         throw SharedMemoryError("payload exceeds shared-memory capacity");
     }
 
@@ -429,18 +478,22 @@ bool SharedMemoryChannel::try_read(std::uint64_t last_seen_sequence, SharedSnaps
 {
     const SharedHeader* header = impl_->header;
 
-    for (std::size_t attempt = 0; attempt < kMaxReadRetries; ++attempt) {
+    for (std::size_t attempt = 0; attempt < kMaxReadRetries; ++attempt)
+    {
         const std::uint64_t before = header->sequence.load(std::memory_order_acquire);
-        if (before % 2 != 0) {
+        if (before % 2 != 0)
+        {
             std::this_thread::yield();
             continue;
         }
-        if (before == last_seen_sequence) {
+        if (before == last_seen_sequence)
+        {
             return false;
         }
 
         const std::uint64_t bytes_used = header->bytes_used.load(std::memory_order_acquire);
-        if (bytes_used > header->capacity) {
+        if (bytes_used > header->capacity)
+        {
             throw SharedMemoryError("shared-memory payload length is invalid");
         }
 
@@ -448,7 +501,8 @@ bool SharedMemoryChannel::try_read(std::uint64_t last_seen_sequence, SharedSnaps
         std::memcpy(copy.data(), payload_begin(header), copy.size());
 
         const std::uint64_t after = header->sequence.load(std::memory_order_acquire);
-        if (before == after && after % 2 == 0) {
+        if (before == after && after % 2 == 0)
+        {
             out.sequence = after;
             out.bytes = std::move(copy);
             return true;
@@ -511,7 +565,8 @@ void CopyOnWriteBuffer::append(std::uint8_t value)
 
 void CopyOnWriteBuffer::detach()
 {
-    if (!bytes_.unique()) {
+    if (!bytes_.unique())
+    {
         bytes_ = std::make_shared<std::vector<std::uint8_t>>(*bytes_);
     }
 }

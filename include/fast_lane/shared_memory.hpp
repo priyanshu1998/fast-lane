@@ -8,20 +8,24 @@
 #include <string>
 #include <vector>
 
-namespace fast_lane {
+namespace fast_lane
+{
 
-struct SharedSnapshot {
+struct SharedSnapshot
+{
     std::uint64_t sequence = 0;
     std::vector<std::uint8_t> bytes;
 };
 
-class SharedMemoryError : public std::runtime_error {
-public:
+class SharedMemoryError : public std::runtime_error
+{
+  public:
     explicit SharedMemoryError(const std::string& message);
 };
 
-class SharedMemoryChannel {
-public:
+class SharedMemoryChannel
+{
+  public:
     static SharedMemoryChannel create_leader(const std::string& name, std::size_t capacity);
     static SharedMemoryChannel open_follower(const std::string& name);
 
@@ -39,7 +43,7 @@ public:
     void publish(const std::vector<std::uint8_t>& bytes);
     bool try_read(std::uint64_t last_seen_sequence, SharedSnapshot& out) const;
 
-private:
+  private:
     struct Impl;
 
     explicit SharedMemoryChannel(std::unique_ptr<Impl> impl);
@@ -47,8 +51,9 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-class CopyOnWriteBuffer {
-public:
+class CopyOnWriteBuffer
+{
+  public:
     CopyOnWriteBuffer();
     explicit CopyOnWriteBuffer(std::vector<std::uint8_t> bytes);
 
@@ -62,7 +67,7 @@ public:
     void set(std::size_t offset, std::uint8_t value);
     void append(std::uint8_t value);
 
-private:
+  private:
     void detach();
 
     std::shared_ptr<std::vector<std::uint8_t>> bytes_;

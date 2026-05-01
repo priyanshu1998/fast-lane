@@ -17,7 +17,8 @@
 #include <string>
 #include <vector>
 
-namespace {
+namespace
+{
 
 using Clock = std::chrono::steady_clock;
 
@@ -29,14 +30,16 @@ void glfw_error_callback(int error, const char* description)
 bool init_imgui(GLFWwindow*& window, const char* title)
 {
     glfwSetErrorCallback(glfw_error_callback);
-    if (!glfwInit()) {
+    if (!glfwInit())
+    {
         return false;
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     window = glfwCreateWindow(960, 640, title, nullptr, nullptr);
-    if (window == nullptr) {
+    if (window == nullptr)
+    {
         glfwTerminate();
         return false;
     }
@@ -67,7 +70,8 @@ std::vector<std::uint8_t> make_payload(std::uint64_t tick, int value_count, std:
     const int count = std::max(1, value_count);
     std::vector<std::uint64_t> values;
     values.reserve(static_cast<std::size_t>(count));
-    for (int index = 0; index < count; ++index) {
+    for (int index = 0; index < count; ++index)
+    {
         values.push_back(base + (tick * 1000ULL) + static_cast<std::uint64_t>(index));
     }
     return fast_lane::encode_u64_sequence(values);
@@ -76,7 +80,8 @@ std::vector<std::uint8_t> make_payload(std::uint64_t tick, int value_count, std:
 void draw_payload_preview(const std::vector<std::uint8_t>& payload)
 {
     const auto values = fast_lane::decode_u64_sequence(payload);
-    if (ImGui::BeginTable("payload-preview", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+    if (ImGui::BeginTable("payload-preview", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    {
         ImGui::TableSetupColumn("Index");
         ImGui::TableSetupColumn("uint64");
         ImGui::TableSetupColumn("Hex");
@@ -84,7 +89,8 @@ void draw_payload_preview(const std::vector<std::uint8_t>& payload)
         ImGui::TableHeadersRow();
 
         const std::size_t limit = std::min<std::size_t>(values.size(), 16);
-        for (std::size_t row = 0; row < limit; ++row) {
+        for (std::size_t row = 0; row < limit; ++row)
+        {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%zu", row);
@@ -94,7 +100,8 @@ void draw_payload_preview(const std::vector<std::uint8_t>& payload)
             ImGui::Text("0x%016llx", static_cast<unsigned long long>(values[row]));
             ImGui::TableSetColumnIndex(3);
             const auto* byte_view = reinterpret_cast<const std::uint8_t*>(&values[row]);
-            ImGui::Text("%02x %02x %02x %02x ...", byte_view[0], byte_view[1], byte_view[2], byte_view[3]);
+            ImGui::Text(
+                "%02x %02x %02x %02x ...", byte_view[0], byte_view[1], byte_view[2], byte_view[3]);
         }
         ImGui::EndTable();
     }
@@ -105,7 +112,8 @@ void draw_payload_preview(const std::vector<std::uint8_t>& payload)
 int main()
 {
     GLFWwindow* window = nullptr;
-    if (!init_imgui(window, "Fast Lane Leader")) {
+    if (!init_imgui(window, "Fast Lane Leader"))
+    {
         return 1;
     }
 
@@ -125,7 +133,8 @@ int main()
     std::string status = "Create a leader channel to begin publishing.";
     auto next_publish = Clock::now();
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window))
+    {
         glfwPollEvents();
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -145,33 +154,44 @@ int main()
         value_count = std::max(value_count, 1);
         interval_ms = std::max(interval_ms, 10);
 
-        if (!channel.has_value()) {
-            if (ImGui::Button("Create Leader")) {
-                try {
+        if (!channel.has_value())
+        {
+            if (ImGui::Button("Create Leader"))
+            {
+                try
+                {
                     channel.emplace(fast_lane::SharedMemoryChannel::create_leader(
-                        channel_name.data(),
-                        static_cast<std::size_t>(capacity)));
+                        channel_name.data(), static_cast<std::size_t>(capacity)));
                     tick = 0;
                     auto_publish = false;
                     status = "Leader channel created.";
-                } catch (const std::exception& error) {
+                }
+                catch (const std::exception& error)
+                {
                     status = std::string("Create failed: ") + error.what();
                 }
             }
-        } else {
-            if (ImGui::Button("Close Leader")) {
+        }
+        else
+        {
+            if (ImGui::Button("Close Leader"))
+            {
                 channel.reset();
                 auto_publish = false;
                 status = "Leader channel closed.";
             }
             ImGui::SameLine();
-            if (ImGui::Button("Publish Once")) {
-                try {
+            if (ImGui::Button("Publish Once"))
+            {
+                try
+                {
                     ++tick;
                     last_payload = make_payload(tick, value_count, base_value);
                     channel->publish(last_payload);
                     status = "Published one payload.";
-                } catch (const std::exception& error) {
+                }
+                catch (const std::exception& error)
+                {
                     status = std::string("Publish failed: ") + error.what();
                 }
             }
@@ -179,13 +199,17 @@ int main()
             ImGui::Checkbox("Auto Publish", &auto_publish);
         }
 
-        if (channel.has_value() && auto_publish && Clock::now() >= next_publish) {
-            try {
+        if (channel.has_value() && auto_publish && Clock::now() >= next_publish)
+        {
+            try
+            {
                 ++tick;
                 last_payload = make_payload(tick, value_count, base_value);
                 channel->publish(last_payload);
                 status = "Auto-published payload.";
-            } catch (const std::exception& error) {
+            }
+            catch (const std::exception& error)
+            {
                 status = std::string("Auto publish failed: ") + error.what();
                 auto_publish = false;
             }
@@ -198,7 +222,8 @@ int main()
         ImGui::Text("Last payload bytes: %zu", last_payload.size());
         ImGui::TextWrapped("Status: %s", status.c_str());
 
-        if (!last_payload.empty()) {
+        if (!last_payload.empty())
+        {
             ImGui::Separator();
             ImGui::Text("Last Payload Preview");
             draw_payload_preview(last_payload);
@@ -208,7 +233,8 @@ int main()
         ImGui::Checkbox("Show ImGui demo window", &show_demo);
         ImGui::End();
 
-        if (show_demo) {
+        if (show_demo)
+        {
             ImGui::ShowDemoWindow(&show_demo);
         }
 
