@@ -13,6 +13,8 @@ own process memory, then use copy-on-write buffers for private local mutation.
 - `fast_lane_shm`: shared-memory library
 - `leader`: writer process
 - `follower`: reader process
+- `imgui_leader`: optional Dear ImGui writer client
+- `imgui_follower`: optional Dear ImGui reader client
 - `shared_memory_tests`: CTest test executable
 
 ## Layout
@@ -25,10 +27,15 @@ own process memory, then use copy-on-write buffers for private local mutation.
 │       └── shared_memory.hpp
 ├── src/
 │   ├── follower.cpp
+│   ├── imgui_follower.cpp   (requires FAST_LANE_BUILD_IMGUI=ON)
+│   ├── imgui_leader.cpp     (requires FAST_LANE_BUILD_IMGUI=ON)
 │   ├── leader.cpp
 │   └── shared_memory.cpp
-└── tests/
-    └── shared_memory_tests.cpp
+├── tests/
+│   └── shared_memory_tests.cpp
+└── third_party/             (git submodules, optional)
+    ├── imgui/
+    └── glfw/
 ```
 
 ## Requirements
@@ -64,6 +71,59 @@ Windows with Visual Studio:
 cmake -S . -B build-vs -G "Visual Studio 17 2022"
 cmake --build build-vs --config Debug
 ```
+
+## ImGui Clients
+
+The ImGui clients are optional. The command-line `leader`, `follower`, and
+tests build with no extra dependencies.
+
+### Set up submodules (recommended)
+
+ImGui and GLFW are pulled in as git submodules, so no manual installs are
+needed:
+
+```sh
+git submodule add https://github.com/ocornut/imgui.git third_party/imgui
+git submodule add https://github.com/glfw/glfw.git      third_party/glfw
+git submodule update --init --recursive
+```
+
+If you cloned with `--recurse-submodules` they are already present.
+
+### Build the GUI clients
+
+```sh
+cmake -S . -B build-imgui -G Ninja -DFAST_LANE_BUILD_IMGUI=ON
+cmake --build build-imgui
+```
+
+CMake will:
+1. Use `third_party/imgui` automatically (no `-DIMGUI_DIR` needed).
+2. Build GLFW from `third_party/glfw` via `add_subdirectory` — no system
+   GLFW install required.
+3. Find OpenGL from the system (always present on Windows, Linux, macOS).
+
+If the submodules are absent, CMake will print a clear error asking you to run
+`git submodule update --init --recursive`.
+
+### Run the GUI clients
+
+Start the GUI leader first:
+
+```sh
+./build-imgui/imgui_leader
+```
+
+Then run one or more GUI followers in separate terminals:
+
+```sh
+./build-imgui/imgui_follower
+```
+
+The GUI leader lets you create a channel, choose capacity, choose the number of
+`uint64_t` values per payload, publish once, or publish continuously. The GUI
+follower lets you connect to a channel, poll snapshots, inspect decoded values,
+and mutate a forked local buffer to see copy-on-write behavior.
 
 ## Run
 
@@ -166,4 +226,3 @@ the pattern in production, consider adding:
 - crash recovery for an interrupted leader
 - ABI/version negotiation for deployed readers and writers
 - explicit byte-order and schema handling for cross-machine data formats
-

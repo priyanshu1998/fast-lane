@@ -46,8 +46,13 @@ compile_commands.json
 CTestTestfile.cmake
 _deps/
 build/
+build-*/
 bin/
 lib/
+
+# Submodule build artifacts (keep the sources)
+third_party/glfw/build/
+third_party/imgui/*.user
 
 *.cmake
 CMakeUserPresets.json
@@ -71,7 +76,6 @@ CMakeUserPresets.json
 
 ### Ninja ###
 # ninja build tool specific files
-build-*/
 
 # Ninja
 .ninja_deps
